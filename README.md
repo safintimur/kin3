@@ -1,61 +1,61 @@
 # Family Tree MVP (Next.js + Supabase)
 
-Простой MVP веб-приложения для семейного дерева: просмотр связей, добавление и редактирование родственников.
+A simple MVP web app for a family tree: view relationships, add relatives, and edit existing records.
 
-## Стек
+## Stack
 
 - Next.js (App Router)
 - TypeScript
 - React + Tailwind CSS
-- shadcn/ui-стиль UI-компонентов
-- React Flow (pan/zoom карта семьи)
-- Zustand (клиентское состояние)
-- Supabase/Postgres (опционально)
+- shadcn/ui-style UI components
+- React Flow (pan/zoom family map)
+- Zustand (client-side state)
+- Supabase/Postgres (optional)
 
-## Быстрый старт
+## Quick Start
 
 ```bash
 npm install
 npm run dev
 ```
 
-Открыть: `http://localhost:3000`
+Open: `http://localhost:3000`
 
-## Настройка Supabase (опционально)
+## Supabase Setup (Optional)
 
-Если переменные не заданы, приложение автоматически работает на демо-данных в браузере.
+If environment variables are not provided, the app automatically runs on browser demo data.
 
-Создайте `.env.local`:
+Create `.env.local`:
 
 ```bash
 NEXT_PUBLIC_SUPABASE_URL=your_url
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your_anon_key
 ```
 
-Примените схему из `sql/schema.sql` в вашем проекте Supabase.
+Apply the schema from `sql/schema.sql` in your Supabase project.
 
-## Что есть в MVP
+## MVP Features
 
-- Основной экран: левый сайдбар + canvas дерева + правая панель деталей
-- Просмотр дерева через React Flow (pan/zoom, MiniMap, связи)
-- Карточки персон с именем и годами жизни
-- Выбор человека и просмотр полной информации
-- Добавление/редактирование/удаление человека
-- Добавление родителя/ребёнка/партнёра из правой панели
-- Поиск по людям
-- Адаптивная компоновка для мобильных/десктопа
+- Main screen: left sidebar + family tree canvas + right details panel
+- Family tree view with React Flow (pan/zoom, MiniMap, connections)
+- Person cards with name and life years
+- Select a person and view full details
+- Add/edit/delete a person
+- Add parent/child/partner from the right panel
+- Search by people
+- Responsive layout for mobile and desktop
 
-## Структура
+## Structure
 
-- `app` — страницы и layout
-- `components` — UI и layout-компоненты
-- `features` — доменные блоки (tree/person)
-- `lib` — утилиты, репозиторий данных, mock/supabase
-- `store` — Zustand store
-- `types` — типы домена
-- `sql` — схема БД
+- `app` - pages and layout
+- `components` - UI and layout components
+- `features` - domain blocks (tree/person)
+- `lib` - utilities, data repository, mock/supabase
+- `store` - Zustand store
+- `types` - domain types
+- `sql` - database schema
 
-## Команды
+## Commands
 
 ```bash
 npm run dev
