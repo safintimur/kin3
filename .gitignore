@@ -1,4 +1,13 @@
 .next
 node_modules
 .env*
+!.env.example
 out
+.DS_Store
+*.log
+tsconfig.tsbuildinfo
+.venv/
+.local/
+tmp/
+temp/
+supabase/.temp/
