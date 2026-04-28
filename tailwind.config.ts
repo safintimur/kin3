@@ -7,9 +7,11 @@ const config: Config = {
       colors: {
         border: '#e5e7eb',
         background: '#f8fafc',
+        foreground: '#0f172a',
         card: '#ffffff',
         muted: '#6b7280',
-        primary: '#1d4ed8'
+        primary: '#1d4ed8',
+        ring: '#94a3b8'
       }
     }
   },

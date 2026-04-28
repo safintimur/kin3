@@ -34,17 +34,17 @@ export function PersonForm({ initial, title, submitLabel, onSubmit }: Props) {
 
   return (
     <form
-      className="space-y-3"
+      className="min-w-0 space-y-3"
       onSubmit={(e) => {
         e.preventDefault();
         if (!canSubmit) return;
         onSubmit({ firstName, lastName, gender, birthDate, deathDate: deathDate || null, note: note || null, photoUrl: photoUrl || null });
       }}
     >
-      <h3 className="text-xl font-semibold">{title}</h3>
+      <h3 className="break-words text-xl font-semibold">{title}</h3>
       <Input placeholder="Имя" value={firstName} onChange={(e) => setFirstName(e.target.value)} />
       <Input placeholder="Фамилия" value={lastName} onChange={(e) => setLastName(e.target.value)} />
-      <select className="h-11 w-full rounded-xl border border-border px-3" value={gender} onChange={(e) => setGender(e.target.value as Person['gender'])}>
+      <select className="h-11 w-full min-w-0 rounded-xl border border-border px-3" value={gender} onChange={(e) => setGender(e.target.value as Person['gender'])}>
         <option value="unknown">Не указан</option>
         <option value="male">Мужской</option>
         <option value="female">Женский</option>

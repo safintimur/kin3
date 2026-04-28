@@ -1,65 +1,87 @@
-# Family Tree MVP (Next.js + Supabase)
+# Kin3
 
-A simple MVP web app for a family tree: view relationships, add relatives, and edit existing records.
+Легковесный сервис семейного дерева на Next.js и Supabase.
 
-## Stack
+## Стек
 
-- Next.js (App Router)
-- TypeScript
-- React + Tailwind CSS
-- shadcn/ui-style UI components
-- React Flow (pan/zoom family map)
-- Zustand (client-side state)
-- Supabase/Postgres (optional)
+- Next.js App Router
+- React + TypeScript
+- Tailwind CSS
+- React Flow для canvas дерева
+- Zustand для UI-состояния
+- Supabase Auth + Postgres для общей базы
 
-## Quick Start
+## Локальный запуск
 
 ```bash
+nvm use
 npm install
 npm run dev
 ```
 
-Open: `http://localhost:3000`
+Открыть: `http://localhost:3000`.
 
-## Supabase Setup (Optional)
+Без Supabase env приложение не запускает рабочий интерфейс.
 
-If environment variables are not provided, the app automatically runs on browser demo data.
+## Supabase
 
-Create `.env.local`:
+1. Создайте проект в Supabase.
+2. Примените миграции:
 
 ```bash
-NEXT_PUBLIC_SUPABASE_URL=your_url
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your_anon_key
+supabase link --project-ref <project-ref>
+npm run db:push
 ```
 
-Apply the schema from `sql/schema.sql` in your Supabase project.
+3. Добавьте env vars в `.env.local` и в Vercel:
 
-## MVP Features
+```bash
+NEXT_PUBLIC_SUPABASE_URL=<project-url>
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=<publishable-key>
+```
 
-- Main screen: left sidebar + family tree canvas + right details panel
-- Family tree view with React Flow (pan/zoom, MiniMap, connections)
-- Person cards with name and life years
-- Select a person and view full details
-- Add/edit/delete a person
-- Add parent/child/partner from the right panel
-- Search by people
-- Responsive layout for mobile and desktop
+4. Для приватного доступа пригласите членов семьи через Supabase Auth и отключите публичный signup в настройках Supabase.
 
-## Structure
+## Прод
 
-- `app` - pages and layout
-- `components` - UI and layout components
-- `features` - domain blocks (tree/person)
-- `lib` - utilities, data repository, mock/supabase
-- `store` - Zustand store
-- `types` - domain types
-- `sql` - database schema
+1. В Vercel/хостинге укажите Node.js 20+.
+2. Добавьте переменные окружения из `.env.example`:
 
-## Commands
+```bash
+NEXT_PUBLIC_SUPABASE_URL=<project-url>
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=<publishable-key>
+```
+
+3. В Supabase примените миграции:
+
+```bash
+supabase link --project-ref <project-ref>
+npm run db:push
+```
+
+4. В Supabase Auth:
+- включите email magic links;
+- добавьте production domain в redirect URLs;
+- для приватного дерева отключите публичный signup и пригласите нужные email.
+
+Без Supabase env прод соберётся, но покажет ошибку конфигурации вместо рабочего интерфейса.
+
+## Команды
 
 ```bash
 npm run dev
 npm run build
 npm run start
 npm run typecheck
+npm run db:push
 ```
+
+## Структура
+
+- `app` - страницы и layout
+- `components` - UI, auth и layout-компоненты
+- `features` - доменные блоки дерева и формы человека
+- `lib` - Supabase client и репозиторий данных
+- `store` - Zustand store
+- `types` - типы домена
+- `supabase/migrations` - миграции БД

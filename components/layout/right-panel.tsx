@@ -29,13 +29,14 @@ export function RightPanel() {
       .filter(Boolean) as string[];
   }, [person, relationships, persons]);
 
-  const addRelative = (type: 'parent' | 'child' | 'partner') => {
+  const addRelative = async (type: 'parent' | 'child' | 'partner') => {
     if (!person) return;
     const firstName = prompt('Имя');
     if (!firstName) return;
     const lastName = prompt('Фамилия') || person.lastName;
-    const birthDate = prompt('Дата рождения (YYYY-MM-DD)') || '2000-01-01';
-    const newId = addPerson({
+    const birthDate = prompt('Дата рождения (YYYY-MM-DD)');
+    if (!birthDate) return;
+    const newId = await addPerson({
       treeId: person.treeId,
       firstName,
       lastName,
@@ -46,42 +47,42 @@ export function RightPanel() {
       photoUrl: null
     });
 
-    if (type === 'parent') addRelationship('parent_child', newId, person.id);
-    if (type === 'child') addRelationship('parent_child', person.id, newId);
-    if (type === 'partner') addRelationship('partner', person.id, newId);
+    if (type === 'parent') await addRelationship('parent_child', newId, person.id);
+    if (type === 'child') await addRelationship('parent_child', person.id, newId);
+    if (type === 'partner') await addRelationship('partner', person.id, newId);
   };
 
-  if (!person) return <Card className="h-full p-4 text-slate-500">Выберите человека, чтобы увидеть детали.</Card>;
+  if (!person) return <Card className="flex h-full min-h-0 items-center justify-center p-4 text-center text-slate-500">Выберите человека, чтобы увидеть детали.</Card>;
 
   return (
-    <Card className="h-full overflow-auto p-4">
+    <Card className="h-full min-h-0 overflow-auto p-4">
       {editMode ? (
         <PersonForm
           initial={person}
           title="Редактировать"
           submitLabel="Обновить"
-          onSubmit={(payload) => {
-            updatePerson(person.id, payload);
+          onSubmit={async (payload) => {
+            await updatePerson(person.id, payload);
             setEditMode(false);
           }}
         />
       ) : (
         <>
-          <div className="mb-3 flex items-center gap-3">
-            <div className="h-16 w-16 overflow-hidden rounded-full bg-slate-100" />
-            <div>
-              <p className="text-xl font-semibold">{person.firstName} {person.lastName}</p>
-              <p className="text-sm text-slate-500">{person.birthDate} {person.deathDate ? `— ${person.deathDate}` : ''}</p>
+          <div className="mb-3 flex min-w-0 items-center gap-3">
+            <div className="h-16 w-16 shrink-0 overflow-hidden rounded-full bg-slate-100" />
+            <div className="min-w-0">
+              <p className="break-words text-xl font-semibold">{person.firstName} {person.lastName}</p>
+              <p className="break-words text-sm text-slate-500">{person.birthDate} {person.deathDate ? `- ${person.deathDate}` : ''}</p>
             </div>
           </div>
 
           <p className="mb-1 text-sm font-semibold">Связи</p>
-          <ul className="mb-3 list-disc pl-5 text-sm text-slate-700">
+          <ul className="mb-3 list-disc overflow-hidden pl-5 text-sm text-slate-700">
             {related.length ? related.map((item) => <li key={item}>{item}</li>) : <li>Нет связей</li>}
           </ul>
 
           <p className="mb-1 text-sm font-semibold">Заметка</p>
-          <p className="mb-4 rounded-xl bg-slate-50 p-3 text-sm">{person.note || 'Нет заметки'}</p>
+          <p className="mb-4 break-words rounded-xl bg-slate-50 p-3 text-sm">{person.note || 'Нет заметки'}</p>
 
           <div className="grid gap-2">
             <Button onClick={() => setEditMode(true)}>Редактировать</Button>

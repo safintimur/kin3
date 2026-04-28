@@ -16,6 +16,8 @@ export interface Person {
   updatedAt: string;
 }
 
+export type PersonInput = Omit<Person, 'id' | 'createdAt' | 'updatedAt'>;
+
 export interface Relationship {
   id: string;
   treeId: string;

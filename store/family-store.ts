@@ -1,10 +1,14 @@
 'use client';
 
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
-import { FamilyTree, Person, Relationship, RelationshipType } from '@/types/family';
-
-type PersonInput = Omit<Person, 'id' | 'createdAt' | 'updatedAt'>;
+import {
+  createPerson,
+  createRelationship,
+  deletePerson,
+  deleteRelationship,
+  savePerson
+} from '@/lib/family-repository';
+import { FamilyTree, Person, PersonInput, Relationship, RelationshipType } from '@/types/family';
 
 interface FamilyState {
   tree: FamilyTree | null;
@@ -12,69 +16,95 @@ interface FamilyState {
   relationships: Relationship[];
   selectedPersonId: string | null;
   search: string;
+  error: string | null;
   setInitial: (tree: FamilyTree, persons: Person[], relationships: Relationship[]) => void;
+  setError: (error: string | null) => void;
   selectPerson: (id: string | null) => void;
   setSearch: (search: string) => void;
-  addPerson: (input: PersonInput) => string;
-  updatePerson: (id: string, patch: Partial<Person>) => void;
-  removePerson: (id: string) => void;
-  addRelationship: (type: RelationshipType, fromPersonId: string, toPersonId: string) => void;
-  removeRelationship: (id: string) => void;
+  addPerson: (input: PersonInput) => Promise<string>;
+  updatePerson: (id: string, patch: Partial<Person>) => Promise<void>;
+  removePerson: (id: string) => Promise<void>;
+  addRelationship: (type: RelationshipType, fromPersonId: string, toPersonId: string) => Promise<void>;
+  removeRelationship: (id: string) => Promise<void>;
 }
 
-const id = () => crypto.randomUUID();
+const message = (error: unknown) => (error instanceof Error ? error.message : 'Не удалось сохранить изменения');
 
-export const useFamilyStore = create<FamilyState>()(
-  persist(
-    (set) => ({
-      tree: null,
-      persons: [],
-      relationships: [],
-      selectedPersonId: null,
-      search: '',
-      setInitial: (tree, persons, relationships) =>
-        set((state) => (state.persons.length ? state : { tree, persons, relationships })),
-      selectPerson: (selectedPersonId) => set({ selectedPersonId }),
-      setSearch: (search) => set({ search }),
-      addPerson: (input) => {
-        const personId = id();
-        const now = new Date().toISOString();
-        set((state) => ({
-          persons: [...state.persons, { ...input, id: personId, createdAt: now, updatedAt: now }]
-        }));
-        return personId;
-      },
-      updatePerson: (personId, patch) =>
-        set((state) => ({
-          persons: state.persons.map((person) =>
-            person.id === personId ? { ...person, ...patch, updatedAt: new Date().toISOString() } : person
-          )
-        })),
-      removePerson: (personId) =>
-        set((state) => ({
-          persons: state.persons.filter((person) => person.id !== personId),
-          relationships: state.relationships.filter((r) => r.fromPersonId !== personId && r.toPersonId !== personId),
-          selectedPersonId: state.selectedPersonId === personId ? null : state.selectedPersonId
-        })),
-      addRelationship: (type, fromPersonId, toPersonId) =>
-        set((state) => ({
-          relationships: [
-            ...state.relationships,
-            { id: id(), treeId: state.tree?.id ?? 'tree-demo', type, fromPersonId, toPersonId, createdAt: new Date().toISOString() }
-          ]
-        })),
-      removeRelationship: (relId) =>
-        set((state) => ({
-          relationships: state.relationships.filter((r) => r.id !== relId)
-        }))
-    }),
-    {
-      name: 'family-tree-store',
-      partialize: (state) => ({
-        tree: state.tree,
-        persons: state.persons,
-        relationships: state.relationships
-      })
+export const useFamilyStore = create<FamilyState>()((set, get) => ({
+  tree: null,
+  persons: [],
+  relationships: [],
+  selectedPersonId: null,
+  search: '',
+  error: null,
+  setInitial: (tree, persons, relationships) => set({ tree, persons, relationships, error: null }),
+  setError: (error) => set({ error }),
+  selectPerson: (selectedPersonId) => set({ selectedPersonId }),
+  setSearch: (search) => set({ search }),
+  addPerson: async (input) => {
+    try {
+      const person = await createPerson(input);
+      set((state) => ({ persons: [...state.persons, person], error: null }));
+      return person.id;
+    } catch (error) {
+      set({ error: message(error) });
+      throw error;
     }
-  )
-);
+  },
+  updatePerson: async (personId, patch) => {
+    const previous = get().persons.find((person) => person.id === personId);
+    if (!previous) return;
+
+    try {
+      const person = await savePerson(personId, patch);
+      set((state) => ({
+        persons: state.persons.map((item) => (item.id === personId ? person : item)),
+        error: null
+      }));
+    } catch (error) {
+      set({ error: message(error) });
+      throw error;
+    }
+  },
+  removePerson: async (personId) => {
+    try {
+      await deletePerson(personId);
+      set((state) => ({
+        persons: state.persons.filter((person) => person.id !== personId),
+        relationships: state.relationships.filter((r) => r.fromPersonId !== personId && r.toPersonId !== personId),
+        selectedPersonId: state.selectedPersonId === personId ? null : state.selectedPersonId,
+        error: null
+      }));
+    } catch (error) {
+      set({ error: message(error) });
+      throw error;
+    }
+  },
+  addRelationship: async (type, fromPersonId, toPersonId) => {
+    const treeId = get().tree?.id;
+    if (!treeId) {
+      set({ error: 'Семейное дерево не загружено' });
+      throw new Error('Family tree is not loaded');
+    }
+
+    try {
+      const relationship = await createRelationship(treeId, type, fromPersonId, toPersonId);
+      set((state) => ({ relationships: [...state.relationships, relationship], error: null }));
+    } catch (error) {
+      set({ error: message(error) });
+      throw error;
+    }
+  },
+  removeRelationship: async (relId) => {
+    try {
+      await deleteRelationship(relId);
+      set((state) => ({
+        relationships: state.relationships.filter((r) => r.id !== relId),
+        error: null
+      }));
+    } catch (error) {
+      set({ error: message(error) });
+      throw error;
+    }
+  }
+}));

@@ -22,26 +22,31 @@ export function LeftPanel() {
   );
 
   return (
-    <Card className="h-full p-3">
-      <p className="mb-2 text-lg font-semibold">{tree?.title ?? 'Семья'}</p>
+    <Card className="flex h-full min-h-0 flex-col p-3">
+      <p className="mb-2 min-w-0 break-words text-lg font-semibold">{tree?.title ?? 'Семья'}</p>
       <Input placeholder="Поиск" value={search} onChange={(e) => setSearch(e.target.value)} className="mb-3" />
-      <Button className="mb-3 w-full" onClick={() => setShowAdd((v) => !v)}>{showAdd ? 'Скрыть форму' : 'Добавить человека'}</Button>
+      <Button className="mb-3 w-full" disabled={!tree} onClick={() => setShowAdd((v) => !v)}>{showAdd ? 'Скрыть форму' : 'Добавить человека'}</Button>
       {showAdd && (
-        <div className="mb-3 rounded-xl border p-2">
+        <div className="mb-3 max-h-[min(60dvh,520px)] overflow-auto rounded-xl border p-2">
           <PersonForm
             title="Новый родственник"
             submitLabel="Сохранить"
-            onSubmit={(payload) => {
-              addPerson({ ...payload, treeId: tree?.id ?? 'tree-demo' });
-              setShowAdd(false);
+            onSubmit={async (payload) => {
+              if (!tree) return;
+              try {
+                await addPerson({ ...payload, treeId: tree.id });
+                setShowAdd(false);
+              } catch {
+                // Ошибка уже записывается в стор, форму оставляем открытой.
+              }
             }}
           />
         </div>
       )}
-      <div className="space-y-2 overflow-auto">
+      <div className="min-h-0 flex-1 space-y-2 overflow-auto">
         {list.map((person) => (
           <button key={person.id} className="w-full rounded-xl border p-2 text-left hover:bg-slate-50" onClick={() => selectPerson(person.id)}>
-            <p className="font-medium">{person.firstName} {person.lastName}</p>
+            <p className="break-words font-medium">{person.firstName} {person.lastName}</p>
             <p className="text-sm text-slate-500">{person.birthDate}</p>
           </button>
         ))}

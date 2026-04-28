@@ -16,7 +16,7 @@ export function TreeCanvas() {
   const { nodes, edges } = buildFlow(persons, relationships);
 
   return (
-    <div className="h-full w-full rounded-2xl border border-border bg-white">
+    <div className="h-full min-h-0 w-full min-w-0 overflow-hidden rounded-2xl border border-border bg-white [&_.react-flow__minimap]:hidden sm:[&_.react-flow__minimap]:block">
       <ReactFlow
         nodes={nodes}
         edges={edges}
