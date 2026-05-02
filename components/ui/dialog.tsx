@@ -45,13 +45,13 @@ export function Sheet({ children, description, onOpenChange, open, side = 'right
     <div className="fixed inset-0 z-50 flex bg-slate-950/35">
       <section
         className={cn(
-          'flex min-w-0 flex-col border-border bg-white shadow-xl',
+          'flex min-w-0 flex-col overflow-hidden border-border bg-white shadow-xl',
           side === 'bottom'
-            ? 'mt-auto max-h-[92dvh] w-full rounded-t-xl border-t p-4'
+            ? 'mt-auto max-h-[calc(100dvh-1rem)] w-full rounded-t-xl border-t p-4'
             : 'ml-auto h-full w-full max-w-md border-l p-4'
         )}
       >
-        <div className="mb-4 flex min-w-0 items-start justify-between gap-3">
+        <div className="mb-4 flex shrink-0 min-w-0 items-start justify-between gap-3">
           <div className="min-w-0">
             <h2 className="break-words text-lg font-semibold">{title}</h2>
             {description && <p className="mt-1 break-words text-sm text-slate-500">{description}</p>}
@@ -60,7 +60,14 @@ export function Sheet({ children, description, onOpenChange, open, side = 'right
             <X className="h-4 w-4" />
           </Button>
         </div>
-        <div className="min-h-0 flex-1 overflow-auto">{children}</div>
+        <div
+          className={cn(
+            'min-h-0 flex-1 overflow-auto overscroll-contain',
+            side === 'bottom' ? 'pb-[calc(1rem+env(safe-area-inset-bottom))]' : 'pb-4'
+          )}
+        >
+          {children}
+        </div>
       </section>
     </div>
   );

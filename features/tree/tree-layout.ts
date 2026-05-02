@@ -8,6 +8,8 @@ const unionYOffset = 118;
 const pairKey = (firstId: string, secondId: string) => [firstId, secondId].sort().join('__');
 const soloKey = (personId: string) => `solo__${personId}`;
 
+export type ManualPositions = Record<string, { x: number; y: number }>;
+
 interface UnionGroup {
   children: Set<string>;
   id: string;
@@ -15,11 +17,18 @@ interface UnionGroup {
   partnerRelId?: string;
 }
 
-export function buildFlow(persons: Person[], relationships: Relationship[], selectedPersonId?: string | null) {
+export function buildFlow(
+  persons: Person[],
+  relationships: Relationship[],
+  selectedPersonId?: string | null,
+  manualPositions: ManualPositions = {},
+  linkMode = false
+) {
   const personById = new Map(persons.map((person) => [person.id, person]));
   const parentRels = relationships.filter((relationship) => relationship.type === 'parent_child');
   const partnerRels = relationships.filter((relationship) => relationship.type === 'partner');
   const partnerPairs = new Set(partnerRels.map((relationship) => pairKey(relationship.fromPersonId, relationship.toPersonId)));
+  const partnersByPerson = new Map<string, string[]>();
   const generation = new Map<string, number>();
 
   persons.forEach((person) => generation.set(person.id, 0));
@@ -38,6 +47,8 @@ export function buildFlow(persons: Person[], relationships: Relationship[], sele
     const aligned = Math.min(firstGen, secondGen);
     generation.set(relationship.fromPersonId, aligned);
     generation.set(relationship.toPersonId, aligned);
+    partnersByPerson.set(relationship.fromPersonId, [...(partnersByPerson.get(relationship.fromPersonId) ?? []), relationship.toPersonId]);
+    partnersByPerson.set(relationship.toPersonId, [...(partnersByPerson.get(relationship.toPersonId) ?? []), relationship.fromPersonId]);
   });
 
   const parentsByChild = new Map<string, string[]>();
@@ -75,6 +86,12 @@ export function buildFlow(persons: Person[], relationships: Relationship[], sele
     if (uniqueParents.length > 1) {
       const partnerPair = findPartnerPair(uniqueParents, partnerPairs);
       unionParents = partnerPair ?? uniqueParents.slice(0, 2);
+    } else {
+      const onlyParent = uniqueParents[0];
+      const knownPartners = [...new Set(partnersByPerson.get(onlyParent) ?? [])].filter((partnerId) => personById.has(partnerId));
+      if (knownPartners.length === 1) {
+        unionParents = [onlyParent, knownPartners[0]];
+      }
     }
 
     ensureUnion(unionParents).children.add(childId);
@@ -94,14 +111,16 @@ export function buildFlow(persons: Person[], relationships: Relationship[], sele
     .forEach(([gen, people]) => {
       const rowWidth = (people.length - 1) * personXGap;
       people.forEach((person, index) => {
-        const position = { x: index * personXGap - rowWidth / 2, y: gen * personYGap };
+        const autoPosition = { x: index * personXGap - rowWidth / 2, y: gen * personYGap };
+        const position = manualPositions[person.id] ?? autoPosition;
         personPositions.set(person.id, position);
         nodes.push({
           id: person.id,
           type: 'person',
           position,
+          draggable: true,
           selected: selectedPersonId === person.id,
-          data: { person }
+          data: { linkMode, person }
         });
       });
     });
@@ -109,6 +128,17 @@ export function buildFlow(persons: Person[], relationships: Relationship[], sele
   const edges: Edge[] = [];
 
   unions.forEach((union) => {
+    if (union.partnerRelId && union.parents.length === 2 && union.children.size === 0) {
+      edges.push({
+        id: `${union.id}__partner`,
+        source: union.parents[0],
+        target: union.parents[1],
+        type: 'smoothstep',
+        style: { strokeDasharray: '4 4' }
+      });
+      return;
+    }
+
     const parentPositions = union.parents.map((parentId) => personPositions.get(parentId)).filter(Boolean) as { x: number; y: number }[];
     const childPositions = [...union.children].map((childId) => personPositions.get(childId)).filter(Boolean) as { x: number; y: number }[];
     const allPositions = [...parentPositions, ...childPositions];
@@ -121,6 +151,8 @@ export function buildFlow(persons: Person[], relationships: Relationship[], sele
       id: union.id,
       type: 'union',
       position: { x, y },
+      draggable: false,
+      selectable: false,
       data: { parents: union.parents }
     });
 
@@ -130,8 +162,7 @@ export function buildFlow(persons: Person[], relationships: Relationship[], sele
         source: parentId,
         target: union.id,
         type: 'smoothstep',
-        animated: Boolean(union.partnerRelId),
-        label: union.partnerRelId ? 'Партнёры' : undefined,
+        animated: false,
         style: union.partnerRelId ? { strokeDasharray: '4 4' } : undefined
       });
     });

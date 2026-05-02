@@ -7,6 +7,7 @@ export interface Person {
   treeId: string;
   firstName: string;
   lastName?: string | null;
+  maidenName?: string | null;
   gender: Gender;
   birthDate?: string | null;
   deathDate?: string | null;

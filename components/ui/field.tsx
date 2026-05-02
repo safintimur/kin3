@@ -11,7 +11,7 @@ interface FieldProps {
 
 export function Field({ children, className, error, hint, label }: FieldProps) {
   return (
-    <label className={cn('block min-w-0 space-y-1.5', className)}>
+    <label className={cn('flex min-w-0 flex-col gap-1.5', className)} data-invalid={error ? true : undefined}>
       {label && <span className="block text-sm font-medium text-slate-700">{label}</span>}
       {children}
       {error ? (

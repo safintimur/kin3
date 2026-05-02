@@ -30,6 +30,37 @@ interface FamilyState {
 
 const message = (error: unknown) => (error instanceof Error ? error.message : 'Не удалось сохранить изменения');
 
+function normalizedPartnerIds(relationships: Relationship[], personId: string) {
+  return [
+    ...new Set(
+      relationships
+        .filter((relationship) => relationship.type === 'partner')
+        .map((relationship) => {
+          if (relationship.fromPersonId === personId) return relationship.toPersonId;
+          if (relationship.toPersonId === personId) return relationship.fromPersonId;
+          return null;
+        })
+        .filter(Boolean) as string[]
+    )
+  ];
+}
+
+function relationshipExists(relationships: Relationship[], type: RelationshipType, fromPersonId: string, toPersonId: string) {
+  const sourceId = type === 'partner' && fromPersonId > toPersonId ? toPersonId : fromPersonId;
+  const targetId = type === 'partner' && fromPersonId > toPersonId ? fromPersonId : toPersonId;
+
+  return relationships.some((relationship) => {
+    if (relationship.type !== type) return false;
+    if (type === 'partner') {
+      const relSourceId = relationship.fromPersonId < relationship.toPersonId ? relationship.fromPersonId : relationship.toPersonId;
+      const relTargetId = relationship.fromPersonId < relationship.toPersonId ? relationship.toPersonId : relationship.fromPersonId;
+      return relSourceId === sourceId && relTargetId === targetId;
+    }
+
+    return relationship.fromPersonId === fromPersonId && relationship.toPersonId === toPersonId;
+  });
+}
+
 export const useFamilyStore = create<FamilyState>()((set, get) => ({
   tree: null,
   persons: [],
@@ -89,25 +120,39 @@ export const useFamilyStore = create<FamilyState>()((set, get) => ({
 
     const sourceId = type === 'partner' && fromPersonId > toPersonId ? toPersonId : fromPersonId;
     const targetId = type === 'partner' && fromPersonId > toPersonId ? fromPersonId : toPersonId;
-    const exists = get().relationships.some((relationship) => {
-      if (relationship.type !== type) return false;
-      if (type === 'partner') {
-        const relSourceId = relationship.fromPersonId < relationship.toPersonId ? relationship.fromPersonId : relationship.toPersonId;
-        const relTargetId = relationship.fromPersonId < relationship.toPersonId ? relationship.toPersonId : relationship.fromPersonId;
-        return relSourceId === sourceId && relTargetId === targetId;
+    const relationships = get().relationships;
+    const requested = [{ fromPersonId: sourceId, toPersonId: targetId, type }];
+
+    if (type === 'parent_child') {
+      const partners = normalizedPartnerIds(relationships, fromPersonId);
+      const existingChildParents = new Set(
+        relationships
+          .filter((relationship) => relationship.type === 'parent_child' && relationship.toPersonId === toPersonId)
+          .map((relationship) => relationship.fromPersonId)
+      );
+
+      if (partners.length === 1 && !existingChildParents.has(partners[0])) {
+        requested.push({ fromPersonId: partners[0], toPersonId, type });
       }
+    }
 
-      return relationship.fromPersonId === fromPersonId && relationship.toPersonId === toPersonId;
-    });
+    const missing = requested.filter((relationship) => !relationshipExists(relationships, relationship.type, relationship.fromPersonId, relationship.toPersonId));
 
-    if (exists) {
+    if (!missing.length) {
       set({ error: null });
       return;
     }
 
     try {
-      const relationship = await createRelationship(treeId, type, sourceId, targetId);
-      set((state) => ({ relationships: [...state.relationships, relationship], error: null }));
+      for (const relationshipInput of missing) {
+        const relationship = await createRelationship(
+          treeId,
+          relationshipInput.type,
+          relationshipInput.fromPersonId,
+          relationshipInput.toPersonId
+        );
+        set((state) => ({ relationships: [...state.relationships, relationship], error: null }));
+      }
     } catch (error) {
       set({ error: message(error) });
       throw error;

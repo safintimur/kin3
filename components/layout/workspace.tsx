@@ -1,20 +1,22 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { TouchEvent, useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
-import { GitBranch, Info, Users } from 'lucide-react';
+import { GitBranch, Users } from 'lucide-react';
 import { AuthGate } from '@/components/auth/auth-gate';
 import { LeftPanel } from '@/components/layout/left-panel';
+import { MobilePeopleView } from '@/components/layout/mobile-people-view';
 import { RightPanel } from '@/components/layout/right-panel';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Toast } from '@/components/ui/toast';
-import { Tooltip } from '@/components/ui/tooltip';
 import { TreeCanvas } from '@/features/tree/tree-canvas';
 import { loadFamilyData } from '@/lib/family-repository';
 import { useFamilyStore } from '@/store/family-store';
 
-type MobileView = 'tree' | 'people' | 'details';
+type MobileView = 'tree' | 'list';
+type MobileDetailOrigin = 'tree' | 'list';
+type ViewportMode = 'desktop' | 'mobile' | 'tablet';
 
 export function FamilyWorkspace() {
   return (
@@ -26,13 +28,19 @@ export function FamilyWorkspace() {
 
 function FamilyWorkspaceContent() {
   const [mobileView, setMobileView] = useState<MobileView>('tree');
+  const [mobileDetailOpen, setMobileDetailOpen] = useState(false);
+  const [mobileDetailOrigin, setMobileDetailOrigin] = useState<MobileDetailOrigin>('list');
+  const [treeFocusRequest, setTreeFocusRequest] = useState<{ personId: string; requestId: number } | null>(null);
   const [tabletPanel, setTabletPanel] = useState<'people' | 'details'>('people');
+  const [viewportMode, setViewportMode] = useState<ViewportMode>('mobile');
   const [loading, setLoading] = useState(true);
+  const mobileTouchStart = useRef<{ x: number; y: number } | null>(null);
   const setInitial = useFamilyStore((s) => s.setInitial);
   const setError = useFamilyStore((s) => s.setError);
   const error = useFamilyStore((s) => s.error);
   const tree = useFamilyStore((s) => s.tree);
   const persons = useFamilyStore((s) => s.persons);
+  const selectPerson = useFamilyStore((s) => s.selectPerson);
 
   useEffect(() => {
     loadFamilyData()
@@ -45,6 +53,65 @@ function FamilyWorkspaceContent() {
       .finally(() => setLoading(false));
   }, [setError, setInitial]);
 
+  useEffect(() => {
+    const updateViewportMode = () => {
+      if (window.innerWidth >= 1024) {
+        setViewportMode('desktop');
+        return;
+      }
+      if (window.innerWidth >= 768) {
+        setViewportMode('tablet');
+        return;
+      }
+      setViewportMode('mobile');
+    };
+
+    updateViewportMode();
+    window.addEventListener('resize', updateViewportMode);
+    return () => window.removeEventListener('resize', updateViewportMode);
+  }, []);
+
+  const openMobilePerson = (personId: string, origin: MobileDetailOrigin) => {
+    selectPerson(personId);
+    setMobileDetailOrigin(origin);
+    setMobileDetailOpen(true);
+    setMobileView('list');
+  };
+
+  const closeMobileDetail = () => {
+    setMobileDetailOpen(false);
+    if (mobileDetailOrigin === 'tree') {
+      setMobileView('tree');
+    }
+  };
+
+  const findPersonOnTree = (personId: string) => {
+    selectPerson(personId);
+    setTreeFocusRequest({ personId, requestId: Date.now() });
+    setMobileView('tree');
+    setMobileDetailOpen(false);
+  };
+
+  const onMobileTouchStart = (event: TouchEvent<HTMLDivElement>) => {
+    const touch = event.changedTouches[0];
+    mobileTouchStart.current = { x: touch.clientX, y: touch.clientY };
+  };
+
+  const onMobileTouchEnd = (event: TouchEvent<HTMLDivElement>) => {
+    if (!mobileTouchStart.current) return;
+    if (mobileDetailOpen) {
+      mobileTouchStart.current = null;
+      return;
+    }
+    const touch = event.changedTouches[0];
+    const dx = touch.clientX - mobileTouchStart.current.x;
+    const dy = touch.clientY - mobileTouchStart.current.y;
+    mobileTouchStart.current = null;
+
+    if (Math.abs(dx) < 80 || Math.abs(dy) > 50) return;
+    setMobileView(dx < 0 ? 'list' : 'tree');
+  };
+
   return (
     <main className="h-dvh overflow-hidden bg-slate-50">
       {loading ? (
@@ -55,7 +122,7 @@ function FamilyWorkspaceContent() {
         <div className="grid h-full grid-rows-[auto_minmax(0,1fr)_auto]">
           <header className="flex min-w-0 items-center justify-between gap-3 border-b border-border bg-white px-3 py-2 md:px-4">
             <div className="min-w-0">
-              <h1 className="truncate text-lg font-semibold">{tree?.title ?? 'Семья'}</h1>
+              <h1 className="truncate text-lg font-semibold">Семейное древо</h1>
               <p className="truncate text-xs text-slate-500">{persons.length} человек в дереве</p>
             </div>
             <div className="hidden items-center gap-1 md:flex lg:hidden">
@@ -65,49 +132,68 @@ function FamilyWorkspaceContent() {
           </header>
 
           <section className="min-h-0 p-3 md:p-4">
-            <div className="hidden h-full min-h-0 gap-3 lg:grid lg:grid-cols-[300px_minmax(0,1fr)_360px]">
-              <LeftPanel />
-              <TreeCanvas />
-              <RightPanel />
-            </div>
+            {viewportMode === 'desktop' && (
+              <div className="grid h-full min-h-0 gap-3 lg:grid-cols-[300px_minmax(0,1fr)_360px]">
+                <LeftPanel />
+                <TreeCanvas focusRequest={treeFocusRequest} />
+                <RightPanel onFindInTree={findPersonOnTree} />
+              </div>
+            )}
 
-            <div className="hidden h-full min-h-0 gap-3 md:grid md:grid-cols-[minmax(0,1fr)_340px] lg:hidden">
-              <TreeCanvas />
-              {tabletPanel === 'people' ? <LeftPanel /> : <RightPanel />}
-            </div>
+            {viewportMode === 'tablet' && (
+              <div className="grid h-full min-h-0 gap-3 md:grid-cols-[minmax(0,1fr)_340px]">
+                <TreeCanvas focusRequest={treeFocusRequest} />
+                {tabletPanel === 'people' ? <LeftPanel /> : <RightPanel onFindInTree={findPersonOnTree} />}
+              </div>
+            )}
 
-            <div className="h-full min-h-0 md:hidden">
-              {mobileView === 'tree' && <TreeCanvas />}
-              {mobileView === 'people' && <LeftPanel />}
-              {mobileView === 'details' && <RightPanel />}
-            </div>
+            {viewportMode === 'mobile' && (
+              <div className="h-full min-h-0 w-full overflow-hidden" onTouchStart={onMobileTouchStart} onTouchEnd={onMobileTouchEnd}>
+                <div
+                  className="flex h-full min-h-0 w-[200%] transition-[margin-left] duration-200 ease-out"
+                  style={{ marginLeft: mobileView === 'tree' ? '0' : '-100%' }}
+                >
+                  <div className="h-full min-h-0 w-1/2 shrink-0">
+                    <TreeCanvas focusRequest={treeFocusRequest} onPersonOpen={(personId) => openMobilePerson(personId, 'tree')} />
+                  </div>
+                  <div className="h-full min-h-0 w-1/2 shrink-0">
+                    <MobilePeopleView
+                      detailOpen={mobileDetailOpen}
+                      onBack={closeMobileDetail}
+                      onFindInTree={findPersonOnTree}
+                      onPersonOpen={(personId) => openMobilePerson(personId, 'list')}
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
           </section>
 
-          <nav className="grid grid-cols-3 border-t border-border bg-white p-2 md:hidden">
-            <MobileNavButton active={mobileView === 'tree'} icon={<GitBranch className="h-4 w-4" />} label="Дерево" onClick={() => setMobileView('tree')} />
-            <MobileNavButton active={mobileView === 'people'} icon={<Users className="h-4 w-4" />} label="Люди" onClick={() => setMobileView('people')} />
-            <MobileNavButton active={mobileView === 'details'} icon={<Info className="h-4 w-4" />} label="Детали" onClick={() => setMobileView('details')} />
-          </nav>
+          {viewportMode === 'mobile' && (
+            <nav className="grid grid-cols-2 gap-2 border-t border-border bg-white p-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))]">
+              <MobileNavButton active={mobileView === 'tree'} icon={<GitBranch className="h-4 w-4" />} label="Древо" onClick={() => setMobileView('tree')} />
+              <MobileNavButton active={mobileView === 'list'} icon={<Users className="h-4 w-4" />} label="Список" onClick={() => setMobileView('list')} />
+            </nav>
+          )}
         </div>
       )}
-      <Toast message={error} tone="danger" />
+      <Toast message={error} tone="danger" onDismiss={() => setError(null)} />
     </main>
   );
 }
 
 function MobileNavButton({ active, icon, label, onClick }: { active: boolean; icon: ReactNode; label: string; onClick: () => void }) {
   return (
-    <Tooltip label={label}>
-      <button
-        className={`flex min-h-12 min-w-0 flex-col items-center justify-center gap-1 rounded-lg px-2 text-xs font-medium transition ${
-          active ? 'bg-slate-900 text-white' : 'text-slate-500 hover:bg-slate-100 hover:text-slate-900'
-        }`}
-        type="button"
-        onClick={onClick}
-      >
-        {icon}
-        <span>{label}</span>
-      </button>
-    </Tooltip>
+    <button
+      aria-current={active ? 'page' : undefined}
+      className={`flex min-h-12 w-full min-w-0 flex-col items-center justify-center gap-1 rounded-lg px-2 text-xs font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+        active ? 'bg-slate-900 text-white' : 'text-slate-500 hover:bg-slate-100 hover:text-slate-900'
+      }`}
+      type="button"
+      onClick={onClick}
+    >
+      {icon}
+      <span>{label}</span>
+    </button>
   );
 }

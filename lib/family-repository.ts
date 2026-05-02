@@ -121,6 +121,7 @@ function mapPerson(row: Record<string, unknown>): Person {
     treeId: String(row.tree_id),
     firstName: String(row.first_name),
     lastName: row.last_name ? String(row.last_name) : null,
+    maidenName: row.maiden_name ? String(row.maiden_name) : null,
     gender: String(row.gender) as Person['gender'],
     birthDate: row.birth_date ? String(row.birth_date) : null,
     deathDate: row.death_date ? String(row.death_date) : null,
@@ -147,6 +148,7 @@ function toPersonRow(input: PersonInput) {
     tree_id: input.treeId,
     first_name: input.firstName,
     last_name: input.lastName || null,
+    maiden_name: input.maidenName || null,
     gender: input.gender || 'unknown',
     birth_date: input.birthDate || null,
     death_date: input.deathDate || null,
@@ -160,6 +162,7 @@ function toPersonPatchRow(patch: Partial<Person>) {
 
   if (patch.firstName !== undefined) row.first_name = patch.firstName;
   if (patch.lastName !== undefined) row.last_name = patch.lastName || null;
+  if (patch.maidenName !== undefined) row.maiden_name = patch.maidenName || null;
   if (patch.gender !== undefined) row.gender = patch.gender || 'unknown';
   if (patch.birthDate !== undefined) row.birth_date = patch.birthDate || null;
   if (patch.deathDate !== undefined) row.death_date = patch.deathDate || null;

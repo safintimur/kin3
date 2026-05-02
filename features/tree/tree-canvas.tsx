@@ -1,22 +1,23 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import ReactFlow, {
-  Background,
   Connection,
+  ConnectionMode,
   Controls,
   MiniMap,
+  Node,
   ReactFlowProvider,
   useReactFlow
 } from 'reactflow';
-import { Maximize2, Plus } from 'lucide-react';
+import { Link2, Maximize2, Plus } from 'lucide-react';
 import 'reactflow/dist/style.css';
 import { Button } from '@/components/ui/button';
 import { Dialog, Sheet } from '@/components/ui/dialog';
 import { Tooltip } from '@/components/ui/tooltip';
 import { PersonForm } from '@/features/person/person-form';
 import { PersonNode } from '@/features/tree/person-node';
-import { buildFlow } from '@/features/tree/tree-layout';
+import { ManualPositions, buildFlow } from '@/features/tree/tree-layout';
 import { UnionNode } from '@/features/tree/union-node';
 import { personName } from '@/lib/person-format';
 import { useFamilyStore } from '@/store/family-store';
@@ -28,17 +29,24 @@ type PendingConnection = {
   targetId: string;
 };
 
-export function TreeCanvas() {
+interface TreeCanvasProps {
+  focusRequest?: { personId: string; requestId: number } | null;
+  onPersonOpen?: (personId: string) => void;
+}
+
+export function TreeCanvas({ focusRequest, onPersonOpen }: TreeCanvasProps) {
   return (
     <ReactFlowProvider>
-      <TreeCanvasContent />
+      <TreeCanvasContent focusRequest={focusRequest} onPersonOpen={onPersonOpen} />
     </ReactFlowProvider>
   );
 }
 
-function TreeCanvasContent() {
+function TreeCanvasContent({ focusRequest, onPersonOpen }: TreeCanvasProps) {
   const [createOpen, setCreateOpen] = useState(false);
+  const [linkMode, setLinkMode] = useState(false);
   const [pendingConnection, setPendingConnection] = useState<PendingConnection | null>(null);
+  const [manualPositions, setManualPositions] = useState<ManualPositions>({});
   const persons = useFamilyStore((s) => s.persons);
   const relationships = useFamilyStore((s) => s.relationships);
   const selectedPersonId = useFamilyStore((s) => s.selectedPersonId);
@@ -51,8 +59,8 @@ function TreeCanvasContent() {
   const personIds = useMemo(() => new Set(persons.map((person) => person.id)), [persons]);
   const personById = useMemo(() => new Map(persons.map((person) => [person.id, person])), [persons]);
   const { nodes, edges } = useMemo(
-    () => buildFlow(persons, relationships, selectedPersonId),
-    [persons, relationships, selectedPersonId]
+    () => buildFlow(persons, relationships, selectedPersonId, manualPositions, linkMode),
+    [linkMode, manualPositions, persons, relationships, selectedPersonId]
   );
 
   const sourcePerson = pendingConnection ? personById.get(pendingConnection.sourceId) : null;
@@ -60,6 +68,33 @@ function TreeCanvasContent() {
 
   const centerTree = () => {
     reactFlow.fitView({ duration: 350, padding: 0.24 });
+  };
+
+  useEffect(() => {
+    if (!nodes.length) return;
+    const timeout = window.setTimeout(() => {
+      reactFlow.fitView({ duration: 0, padding: 0.24 });
+    }, 60);
+    return () => window.clearTimeout(timeout);
+  }, [nodes.length, reactFlow]);
+
+  useEffect(() => {
+    if (!focusRequest) return;
+    const node = nodes.find((item) => item.id === focusRequest.personId);
+    if (!node) return;
+
+    window.setTimeout(() => {
+      reactFlow.setCenter(node.position.x + 96, node.position.y + 72, { duration: 450, zoom: 1 });
+    }, 40);
+  }, [focusRequest, nodes, reactFlow]);
+
+  const syncDraggedPersonPosition = (node: Node) => {
+    if (node.type !== 'person') return;
+    setManualPositions((positions) => {
+      const current = positions[node.id];
+      if (current?.x === node.position.x && current?.y === node.position.y) return positions;
+      return { ...positions, [node.id]: node.position };
+    });
   };
 
   const closeConnectionDialog = () => setPendingConnection(null);
@@ -88,23 +123,28 @@ function TreeCanvasContent() {
         nodes={nodes}
         edges={edges}
         nodeTypes={nodeTypes}
-        fitView
+        connectionMode={ConnectionMode.Loose}
+        className="h-full w-full"
+        defaultViewport={{ x: 0, y: 0, zoom: 1 }}
         minZoom={0.2}
         maxZoom={1.7}
         onConnect={(connection: Connection) => {
-          if (!connection.source || !connection.target) return;
+          if (!linkMode || !connection.source || !connection.target) return;
           if (connection.source === connection.target) return;
           if (!personIds.has(connection.source) || !personIds.has(connection.target)) return;
           setPendingConnection({ sourceId: connection.source, targetId: connection.target });
         }}
         onNodeClick={(_, node) => {
-          if (node.type === 'person') selectPerson(node.id);
+          if (node.type !== 'person') return;
+          selectPerson(node.id);
+          onPersonOpen?.(node.id);
         }}
+        onNodeDrag={(_, node: Node) => syncDraggedPersonPosition(node)}
+        onNodeDragStop={(_, node: Node) => syncDraggedPersonPosition(node)}
         proOptions={{ hideAttribution: true }}
       >
         <Controls />
         <MiniMap className="hidden sm:block" zoomable pannable />
-        <Background gap={24} size={1} />
       </ReactFlow>
 
       <div className="pointer-events-none absolute inset-x-3 top-3 flex justify-between gap-2">
@@ -112,12 +152,23 @@ function TreeCanvasContent() {
           Дерево
         </div>
         <div className="pointer-events-auto flex gap-2">
-          <Tooltip label="Центрировать дерево">
+          <Tooltip label={linkMode ? 'Выйти из режима связи' : 'Режим связи'} side="bottom">
+            <Button
+              aria-label={linkMode ? 'Выйти из режима связи' : 'Режим связи'}
+              className={linkMode ? 'ring-2 ring-primary/40' : undefined}
+              type="button"
+              variant="icon"
+              onClick={() => setLinkMode((value) => !value)}
+            >
+              <Link2 className="h-4 w-4" />
+            </Button>
+          </Tooltip>
+          <Tooltip label="Центрировать дерево" side="bottom">
             <Button aria-label="Центрировать дерево" type="button" variant="icon" onClick={centerTree}>
               <Maximize2 className="h-4 w-4" />
             </Button>
           </Tooltip>
-          <Tooltip label="Добавить человека">
+          <Tooltip label="Добавить человека" side="bottom">
             <Button aria-label="Добавить человека" type="button" variant="icon" onClick={() => setCreateOpen(true)}>
               <Plus className="h-5 w-5" />
             </Button>

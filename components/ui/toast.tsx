@@ -1,9 +1,11 @@
 'use client';
 
+import { useEffect } from 'react';
 import { cn } from '@/lib/utils';
 
 interface ToastProps {
   message: string | null;
+  onDismiss?: () => void;
   tone?: 'danger' | 'info' | 'success';
 }
 
@@ -13,7 +15,13 @@ const tones = {
   success: 'border-emerald-200 bg-emerald-600 text-white'
 };
 
-export function Toast({ message, tone = 'info' }: ToastProps) {
+export function Toast({ message, onDismiss, tone = 'info' }: ToastProps) {
+  useEffect(() => {
+    if (!message || !onDismiss) return;
+    const timeout = window.setTimeout(onDismiss, 4500);
+    return () => window.clearTimeout(timeout);
+  }, [message, onDismiss]);
+
   if (!message) return null;
 
   return (

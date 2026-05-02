@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
+import { DateInput } from '@/components/ui/date-input';
 import { Field } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
@@ -15,6 +16,7 @@ interface Props {
   onSubmit: (payload: {
     firstName: string;
     lastName: string;
+    maidenName?: string | null;
     gender: Person['gender'];
     birthDate?: string | null;
     deathDate?: string | null;
@@ -25,22 +27,24 @@ interface Props {
 export function PersonForm({ initial, title, submitLabel, onSubmit }: Props) {
   const [firstName, setFirstName] = useState(initial?.firstName ?? '');
   const [lastName, setLastName] = useState(initial?.lastName ?? '');
+  const [maidenName, setMaidenName] = useState(initial?.maidenName ?? '');
   const [gender, setGender] = useState<Person['gender']>(initial?.gender ?? 'unknown');
-  const [birthDate, setBirthDate] = useState(initial?.birthDate ?? '');
-  const [deathDate, setDeathDate] = useState(initial?.deathDate ?? '');
+  const [birthDate, setBirthDate] = useState<string | null>(initial?.birthDate ?? null);
+  const [deathDate, setDeathDate] = useState<string | null>(initial?.deathDate ?? null);
   const [note, setNote] = useState(initial?.note ?? '');
 
   const canSubmit = useMemo(() => Boolean(firstName.trim()), [firstName]);
 
   return (
     <form
-      className="min-w-0 space-y-3"
+      className="flex min-w-0 flex-col gap-3"
       onSubmit={(e) => {
         e.preventDefault();
         if (!canSubmit) return;
         onSubmit({
           firstName: firstName.trim(),
           lastName: lastName.trim(),
+          maidenName: maidenName.trim() || null,
           gender,
           birthDate: birthDate || null,
           deathDate: deathDate || null,
@@ -55,6 +59,9 @@ export function PersonForm({ initial, title, submitLabel, onSubmit }: Props) {
       <Field label="Фамилия">
         <Input placeholder="Фамилия, если известна" value={lastName} onChange={(e) => setLastName(e.target.value)} />
       </Field>
+      <Field label="Девичья фамилия">
+        <Input placeholder="Если отличается от текущей" value={maidenName} onChange={(e) => setMaidenName(e.target.value)} />
+      </Field>
       <Field label="Пол">
         <Select value={gender} onChange={(e) => setGender(e.target.value as Person['gender'])}>
           <option value="unknown">Не указан</option>
@@ -64,10 +71,10 @@ export function PersonForm({ initial, title, submitLabel, onSubmit }: Props) {
         </Select>
       </Field>
       <Field label="Дата рождения">
-        <Input type="date" value={birthDate ?? ''} onChange={(e) => setBirthDate(e.target.value)} />
+        <DateInput value={birthDate} onValueChange={setBirthDate} />
       </Field>
       <Field label="Дата смерти">
-        <Input type="date" value={deathDate ?? ''} onChange={(e) => setDeathDate(e.target.value)} />
+        <DateInput value={deathDate} onValueChange={setDeathDate} />
       </Field>
       <Field label="Заметка">
         <Textarea placeholder="Короткая заметка" value={note ?? ''} onChange={(e) => setNote(e.target.value)} />

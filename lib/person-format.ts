@@ -3,6 +3,9 @@ import { Person } from '@/types/family';
 export const personName = (person: Pick<Person, 'firstName' | 'lastName'>) =>
   [person.firstName, person.lastName].filter(Boolean).join(' ');
 
+export const personMaidenName = (person: Pick<Person, 'maidenName'>) =>
+  person.maidenName ? `урожд. ${person.maidenName}` : '';
+
 export const personInitials = (person: Pick<Person, 'firstName' | 'lastName'>) =>
   [person.firstName, person.lastName]
     .flatMap((part) => (part ? [part] : []))
