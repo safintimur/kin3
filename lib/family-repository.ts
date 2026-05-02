@@ -82,14 +82,16 @@ export async function createRelationship(
   toPersonId: string
 ): Promise<Relationship> {
   const client = requireSupabase();
+  const [sourceId, targetId] =
+    type === 'partner' && fromPersonId > toPersonId ? [toPersonId, fromPersonId] : [fromPersonId, toPersonId];
 
   const { data, error } = await client
     .from('relationships')
     .insert({
       tree_id: treeId,
       type,
-      from_person_id: fromPersonId,
-      to_person_id: toPersonId
+      from_person_id: sourceId,
+      to_person_id: targetId
     })
     .select('*')
     .single();
@@ -118,9 +120,9 @@ function mapPerson(row: Record<string, unknown>): Person {
     id: String(row.id),
     treeId: String(row.tree_id),
     firstName: String(row.first_name),
-    lastName: String(row.last_name),
+    lastName: row.last_name ? String(row.last_name) : null,
     gender: String(row.gender) as Person['gender'],
-    birthDate: String(row.birth_date),
+    birthDate: row.birth_date ? String(row.birth_date) : null,
     deathDate: row.death_date ? String(row.death_date) : null,
     note: row.note ? String(row.note) : null,
     photoUrl: row.photo_url ? String(row.photo_url) : null,
@@ -144,9 +146,9 @@ function toPersonRow(input: PersonInput) {
   return {
     tree_id: input.treeId,
     first_name: input.firstName,
-    last_name: input.lastName,
-    gender: input.gender,
-    birth_date: input.birthDate,
+    last_name: input.lastName || null,
+    gender: input.gender || 'unknown',
+    birth_date: input.birthDate || null,
     death_date: input.deathDate || null,
     note: input.note || null,
     photo_url: input.photoUrl || null
@@ -157,9 +159,9 @@ function toPersonPatchRow(patch: Partial<Person>) {
   const row: Record<string, unknown> = {};
 
   if (patch.firstName !== undefined) row.first_name = patch.firstName;
-  if (patch.lastName !== undefined) row.last_name = patch.lastName;
-  if (patch.gender !== undefined) row.gender = patch.gender;
-  if (patch.birthDate !== undefined) row.birth_date = patch.birthDate;
+  if (patch.lastName !== undefined) row.last_name = patch.lastName || null;
+  if (patch.gender !== undefined) row.gender = patch.gender || 'unknown';
+  if (patch.birthDate !== undefined) row.birth_date = patch.birthDate || null;
   if (patch.deathDate !== undefined) row.death_date = patch.deathDate || null;
   if (patch.note !== undefined) row.note = patch.note || null;
   if (patch.photoUrl !== undefined) row.photo_url = patch.photoUrl || null;

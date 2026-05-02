@@ -43,8 +43,8 @@ export const useFamilyStore = create<FamilyState>()((set, get) => ({
   setSearch: (search) => set({ search }),
   addPerson: async (input) => {
     try {
-      const person = await createPerson(input);
-      set((state) => ({ persons: [...state.persons, person], error: null }));
+      const person = await createPerson({ ...input, gender: input.gender || 'unknown' });
+      set((state) => ({ persons: [...state.persons, person], selectedPersonId: person.id, error: null }));
       return person.id;
     } catch (error) {
       set({ error: message(error) });
@@ -87,8 +87,26 @@ export const useFamilyStore = create<FamilyState>()((set, get) => ({
       throw new Error('Family tree is not loaded');
     }
 
+    const sourceId = type === 'partner' && fromPersonId > toPersonId ? toPersonId : fromPersonId;
+    const targetId = type === 'partner' && fromPersonId > toPersonId ? fromPersonId : toPersonId;
+    const exists = get().relationships.some((relationship) => {
+      if (relationship.type !== type) return false;
+      if (type === 'partner') {
+        const relSourceId = relationship.fromPersonId < relationship.toPersonId ? relationship.fromPersonId : relationship.toPersonId;
+        const relTargetId = relationship.fromPersonId < relationship.toPersonId ? relationship.toPersonId : relationship.fromPersonId;
+        return relSourceId === sourceId && relTargetId === targetId;
+      }
+
+      return relationship.fromPersonId === fromPersonId && relationship.toPersonId === toPersonId;
+    });
+
+    if (exists) {
+      set({ error: null });
+      return;
+    }
+
     try {
-      const relationship = await createRelationship(treeId, type, fromPersonId, toPersonId);
+      const relationship = await createRelationship(treeId, type, sourceId, targetId);
       set((state) => ({ relationships: [...state.relationships, relationship], error: null }));
     } catch (error) {
       set({ error: message(error) });

@@ -2,7 +2,9 @@
 
 import { useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
+import { Field } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
+import { Select } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Person } from '@/types/family';
 
@@ -14,10 +16,9 @@ interface Props {
     firstName: string;
     lastName: string;
     gender: Person['gender'];
-    birthDate: string;
+    birthDate?: string | null;
     deathDate?: string | null;
     note?: string | null;
-    photoUrl?: string | null;
   }) => void;
 }
 
@@ -28,9 +29,8 @@ export function PersonForm({ initial, title, submitLabel, onSubmit }: Props) {
   const [birthDate, setBirthDate] = useState(initial?.birthDate ?? '');
   const [deathDate, setDeathDate] = useState(initial?.deathDate ?? '');
   const [note, setNote] = useState(initial?.note ?? '');
-  const [photoUrl, setPhotoUrl] = useState(initial?.photoUrl ?? '');
 
-  const canSubmit = useMemo(() => firstName.trim() && lastName.trim() && birthDate, [firstName, lastName, birthDate]);
+  const canSubmit = useMemo(() => Boolean(firstName.trim()), [firstName]);
 
   return (
     <form
@@ -38,22 +38,40 @@ export function PersonForm({ initial, title, submitLabel, onSubmit }: Props) {
       onSubmit={(e) => {
         e.preventDefault();
         if (!canSubmit) return;
-        onSubmit({ firstName, lastName, gender, birthDate, deathDate: deathDate || null, note: note || null, photoUrl: photoUrl || null });
+        onSubmit({
+          firstName: firstName.trim(),
+          lastName: lastName.trim(),
+          gender,
+          birthDate: birthDate || null,
+          deathDate: deathDate || null,
+          note: note.trim() || null
+        });
       }}
     >
       <h3 className="break-words text-xl font-semibold">{title}</h3>
-      <Input placeholder="Имя" value={firstName} onChange={(e) => setFirstName(e.target.value)} />
-      <Input placeholder="Фамилия" value={lastName} onChange={(e) => setLastName(e.target.value)} />
-      <select className="h-11 w-full min-w-0 rounded-xl border border-border px-3" value={gender} onChange={(e) => setGender(e.target.value as Person['gender'])}>
-        <option value="unknown">Не указан</option>
-        <option value="male">Мужской</option>
-        <option value="female">Женский</option>
-        <option value="other">Другой</option>
-      </select>
-      <Input type="date" value={birthDate} onChange={(e) => setBirthDate(e.target.value)} />
-      <Input type="date" value={deathDate ?? ''} onChange={(e) => setDeathDate(e.target.value)} />
-      <Input placeholder="Ссылка на фото" value={photoUrl ?? ''} onChange={(e) => setPhotoUrl(e.target.value)} />
-      <Textarea placeholder="Заметка" value={note ?? ''} onChange={(e) => setNote(e.target.value)} />
+      <Field label="Имя">
+        <Input placeholder="Имя" value={firstName} onChange={(e) => setFirstName(e.target.value)} />
+      </Field>
+      <Field label="Фамилия">
+        <Input placeholder="Фамилия, если известна" value={lastName} onChange={(e) => setLastName(e.target.value)} />
+      </Field>
+      <Field label="Пол">
+        <Select value={gender} onChange={(e) => setGender(e.target.value as Person['gender'])}>
+          <option value="unknown">Не указан</option>
+          <option value="male">Мужской</option>
+          <option value="female">Женский</option>
+          <option value="other">Другой</option>
+        </Select>
+      </Field>
+      <Field label="Дата рождения">
+        <Input type="date" value={birthDate ?? ''} onChange={(e) => setBirthDate(e.target.value)} />
+      </Field>
+      <Field label="Дата смерти">
+        <Input type="date" value={deathDate ?? ''} onChange={(e) => setDeathDate(e.target.value)} />
+      </Field>
+      <Field label="Заметка">
+        <Textarea placeholder="Короткая заметка" value={note ?? ''} onChange={(e) => setNote(e.target.value)} />
+      </Field>
       <Button type="submit" className="w-full" disabled={!canSubmit}>
         {submitLabel}
       </Button>

@@ -38,9 +38,12 @@ npm run db:push
 ```bash
 NEXT_PUBLIC_SUPABASE_URL=<project-url>
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=<publishable-key>
+NEXT_PUBLIC_SITE_URL=http://localhost:3000
 ```
 
 4. Для приватного доступа пригласите членов семьи через Supabase Auth и отключите публичный signup в настройках Supabase.
+
+Для локальной проверки magic link должен возвращать на текущий `localhost`. Даже если в env задан production `NEXT_PUBLIC_SITE_URL`, приложение на `localhost` использует `window.location.origin` для Supabase redirect.
 
 ## Прод
 
@@ -50,6 +53,7 @@ NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=<publishable-key>
 ```bash
 NEXT_PUBLIC_SUPABASE_URL=<project-url>
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=<publishable-key>
+NEXT_PUBLIC_SITE_URL=https://kin3-five.vercel.app
 ```
 
 3. В Supabase примените миграции:
@@ -61,7 +65,10 @@ npm run db:push
 
 4. В Supabase Auth:
 - включите email magic links;
-- добавьте production domain в redirect URLs;
+- установите Site URL в `https://kin3-five.vercel.app`;
+- добавьте `https://kin3-five.vercel.app`, `https://kin3-five.vercel.app/**`, `http://localhost:3000` и `http://localhost:3000/**` в redirect URLs;
+- если локально используете другой порт, добавьте и его, например `http://localhost:3001` и `http://localhost:3001/**`;
+- проверьте, что Magic Link template использует `{{ .ConfirmationURL }}` или `{{ .RedirectTo }}`, а не старый Vercel preview-домен;
 - для приватного дерева отключите публичный signup и пригласите нужные email.
 
 Без Supabase env прод соберётся, но покажет ошибку конфигурации вместо рабочего интерфейса.

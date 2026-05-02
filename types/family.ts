@@ -6,9 +6,9 @@ export interface Person {
   id: string;
   treeId: string;
   firstName: string;
-  lastName: string;
+  lastName?: string | null;
   gender: Gender;
-  birthDate: string;
+  birthDate?: string | null;
   deathDate?: string | null;
   note?: string | null;
   photoUrl?: string | null;
@@ -17,6 +17,10 @@ export interface Person {
 }
 
 export type PersonInput = Omit<Person, 'id' | 'createdAt' | 'updatedAt'>;
+
+export type PersonDraft = Omit<PersonInput, 'treeId' | 'gender'> & {
+  gender?: Gender;
+};
 
 export interface Relationship {
   id: string;

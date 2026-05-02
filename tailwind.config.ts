@@ -10,7 +10,10 @@ const config: Config = {
         foreground: '#0f172a',
         card: '#ffffff',
         muted: '#6b7280',
+        input: '#d1d5db',
         primary: '#1d4ed8',
+        'primary-foreground': '#ffffff',
+        destructive: '#dc2626',
         ring: '#94a3b8'
       }
     }
