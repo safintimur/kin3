@@ -1,17 +1,17 @@
 # Kin3
 
-Легковесный сервис семейного дерева на Next.js и Supabase.
+Kin3 is a lightweight family tree editor built with Next.js and Supabase.
 
-## Стек
+## Stack
 
 - Next.js App Router
 - React + TypeScript
 - Tailwind CSS
-- React Flow для canvas дерева
-- Zustand для UI-состояния
-- Supabase Auth + Postgres для общей базы
+- React Flow for the tree canvas
+- Zustand for UI state
+- Supabase Auth + Postgres
 
-## Локальный запуск
+## Local development
 
 ```bash
 nvm use
@@ -19,21 +19,9 @@ npm install
 npm run dev
 ```
 
-Открыть: `http://localhost:3000`.
+Open `http://localhost:3000`.
 
-Без Supabase env приложение не запускает рабочий интерфейс.
-
-## Supabase
-
-1. Создайте проект в Supabase.
-2. Примените миграции:
-
-```bash
-supabase link --project-ref <project-ref>
-npm run db:push
-```
-
-3. Добавьте env vars в `.env.local` и в Vercel:
+The app needs Supabase environment variables to show the working interface:
 
 ```bash
 NEXT_PUBLIC_SUPABASE_URL=<project-url>
@@ -41,39 +29,80 @@ NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=<publishable-key>
 NEXT_PUBLIC_SITE_URL=http://localhost:3000
 ```
 
-4. Для приватного доступа пригласите членов семьи через Supabase Auth и отключите публичный signup в настройках Supabase.
+Use `.env.local` for local values. Do not commit real project URLs, keys, passwords, or `.local` files.
 
-Для локальной проверки magic link должен возвращать на текущий `localhost`. Даже если в env задан production `NEXT_PUBLIC_SITE_URL`, приложение на `localhost` использует `window.location.origin` для Supabase redirect.
+## Supabase setup
 
-## Прод
-
-1. В Vercel/хостинге укажите Node.js 20+.
-2. Добавьте переменные окружения из `.env.example`:
-
-```bash
-NEXT_PUBLIC_SUPABASE_URL=<project-url>
-NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=<publishable-key>
-NEXT_PUBLIC_SITE_URL=https://kin3-five.vercel.app
-```
-
-3. В Supabase примените миграции:
+Create or link a Supabase project:
 
 ```bash
 supabase link --project-ref <project-ref>
 npm run db:push
 ```
 
-4. В Supabase Auth:
-- включите email magic links;
-- установите Site URL в `https://kin3-five.vercel.app`;
-- добавьте `https://kin3-five.vercel.app`, `https://kin3-five.vercel.app/**`, `http://localhost:3000` и `http://localhost:3000/**` в redirect URLs;
-- если локально используете другой порт, добавьте и его, например `http://localhost:3001` и `http://localhost:3001/**`;
-- проверьте, что Magic Link template использует `{{ .ConfirmationURL }}` или `{{ .RedirectTo }}`, а не старый Vercel preview-домен;
-- для приватного дерева отключите публичный signup и пригласите нужные email.
+If you prefer to push with a direct database URL, put it in `.local/supabase.env`:
 
-Без Supabase env прод соберётся, но покажет ошибку конфигурации вместо рабочего интерфейса.
+```bash
+export SUPABASE_DB_URL="postgresql://..."
+```
 
-## Команды
+Then run:
+
+```bash
+npm run db:push
+```
+
+## Private deployment
+
+Kin3 is designed for private family data. A public repository should not contain a live Supabase project URL, service role key, database password, or personal family records.
+
+For the simplest family deployment, keep live URLs out of the public repository and configure the production URL only in your hosting provider and Supabase dashboard.
+
+If you later need invite-only access:
+
+1. Disable public signups in Supabase Auth settings.
+2. Invite users from the Supabase dashboard or through a trusted server-side admin flow.
+3. Add membership-based RLS policies before exposing write access.
+
+The current migrations keep the app easy for relatives to join, while activity tables record who signed in and who changed family data.
+
+## Activity audit
+
+Recent sign-ins and edits are stored in Supabase:
+
+```sql
+select email, display_name, first_seen_at, last_seen_at
+from public.user_profiles
+order by last_seen_at desc;
+
+select occurred_at, actor_email, actor_name, action, entity_type, entity_id, metadata
+from public.activity_events
+order by occurred_at desc
+limit 100;
+```
+
+`activity_events` records session activity from the app and database-triggered changes to people, relationships, and family tree rows.
+
+## Auth configuration
+
+For local magic-link testing, the app redirects to the current `localhost` origin. Configure Supabase redirect URLs for every environment you use, for example:
+
+```text
+http://localhost:3000
+http://localhost:3000/**
+https://your-domain.example
+https://your-domain.example/**
+```
+
+For hosted deployments, set:
+
+```bash
+NEXT_PUBLIC_SUPABASE_URL=<project-url>
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=<publishable-key>
+NEXT_PUBLIC_SITE_URL=https://your-domain.example
+```
+
+## Commands
 
 ```bash
 npm run dev
@@ -83,12 +112,12 @@ npm run typecheck
 npm run db:push
 ```
 
-## Структура
+## Project structure
 
-- `app` - страницы и layout
-- `components` - UI, auth и layout-компоненты
-- `features` - доменные блоки дерева и формы человека
-- `lib` - Supabase client и репозиторий данных
+- `app` - pages and app layout
+- `components` - UI, auth, and layout components
+- `features` - domain UI for people and tree editing
+- `lib` - Supabase client and data repository
 - `store` - Zustand store
-- `types` - типы домена
-- `supabase/migrations` - миграции БД
+- `types` - domain types
+- `supabase/migrations` - database migrations

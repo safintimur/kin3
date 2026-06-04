@@ -5,6 +5,7 @@ import { Session } from '@supabase/supabase-js';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { rememberPendingDisplayName, syncAuthenticatedUser } from '@/lib/activity';
 import { hasSupabase, supabase } from '@/lib/supabase';
 
 const getRedirectUrl = () => {
@@ -34,6 +35,7 @@ const getAuthErrorMessage = () => {
 
 export function AuthGate({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
+  const [displayName, setDisplayName] = useState('');
   const [email, setEmail] = useState('');
   const [status, setStatus] = useState('Проверяем доступ...');
 
@@ -59,6 +61,12 @@ export function AuthGate({ children }: { children: ReactNode }) {
     return () => data.subscription.unsubscribe();
   }, []);
 
+  useEffect(() => {
+    if (session) {
+      void syncAuthenticatedUser(session);
+    }
+  }, [session]);
+
   if (!hasSupabase) {
     return (
       <main className="flex min-h-screen items-center justify-center p-4">
@@ -75,8 +83,9 @@ export function AuthGate({ children }: { children: ReactNode }) {
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!supabase || !email.trim()) return;
+    if (!supabase || !email.trim() || !displayName.trim()) return;
 
+    rememberPendingDisplayName(displayName);
     setStatus('Отправляем ссылку...');
     const { error } = await supabase.auth.signInWithOtp({
       email: email.trim(),
@@ -94,8 +103,14 @@ export function AuthGate({ children }: { children: ReactNode }) {
         <form className="space-y-3" onSubmit={submit}>
           <div>
             <h1 className="break-words text-xl font-semibold">Вход в семейное дерево</h1>
-            <p className="mt-1 break-words text-sm text-slate-500">Введите email, приглашённый в Supabase Auth.</p>
+            <p className="mt-1 break-words text-sm text-slate-500">Введите имя и email для входа.</p>
           </div>
+          <Input
+            type="text"
+            placeholder="Имя"
+            value={displayName}
+            onChange={(event) => setDisplayName(event.target.value)}
+          />
           <Input type="email" placeholder="you@example.com" value={email} onChange={(event) => setEmail(event.target.value)} />
           <Button type="submit" className="w-full">Получить ссылку</Button>
           {status && <p className="break-words text-sm text-slate-500">{status}</p>}
